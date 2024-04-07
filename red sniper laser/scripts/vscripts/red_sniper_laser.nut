@@ -69,25 +69,31 @@ function OnGameEvent_mvm_reset_stats(params)
 		{
 			entity.SetAbsOrigin(pointer.GetOrigin())
 			EntFireByHandle(entity, "Stop", "", -1, null, null)
+
+			// pointer.Kill()
 		}
+
+		// entity.Kill()
+		EntFireByHandle(entity, "Kill", "", 1, null, null)
 	}
 
-	// entity = null
-	// while (entity = Entities.FindByName(entity, "le_laser_pointer"))
-	// {
-	// 	printl(entity)
-	// 	NetProps.SetPropString(entity, "m_iClassname", "info_particle_system")
-	// 	entity.SetAbsOrigin(Vector(0, -100000, 0))
-	// 	entity.Kill()
-	// }
-
 	entity = null
-	while (entity = Entities.FindByName(entity, "le_laser_color"))
+	while (entity = Entities.FindByName(entity, "le_laser_pointer"))
 	{
 		printl(entity)
 		NetProps.SetPropString(entity, "m_iClassname", "info_particle_system")
-		entity.Kill()
+		entity.SetAbsOrigin(Vector(0, -100000, 0))
+		// entity.Kill()
+		EntFireByHandle(entity, "Kill", "", 1, null, null)
 	}
+
+	// entity = null
+	// while (entity = Entities.FindByName(entity, "le_laser_color"))
+	// {
+	// 	printl(entity)
+	// 	NetProps.SetPropString(entity, "m_iClassname", "info_particle_system")
+	// 	entity.Kill()
+	// }
 }
 
 function OnGameEvent_player_spawn(params)
