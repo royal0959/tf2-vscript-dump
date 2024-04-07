@@ -148,20 +148,18 @@
 			EntFireByHandle(entity, "Stop", "", -1, null, null)
 
 			// NetProps.SetPropString(entity, "m_iClassname", "info_particle_system")
-			// EntFireByHandle(entity, "Kill", "", 1, null, null)
+			EntFireByHandle(entity, "Kill", "", 5, null, null)
 		}
 
 		for (local entity; entity = Entities.FindByName(entity, "le_laser_pointer");)
 		{
 			// NetProps.SetPropString(entity, "m_iClassname", "info_particle_system")
-			// entity.SetAbsOrigin(Vector(0, -100000, 0))
-			// EntFireByHandle(entity, "Kill", "", 1, null, null)
+			entity.SetAbsOrigin(Vector(0, -100000, 0))
+			EntFireByHandle(entity, "Kill", "", 5, null, null)
 		}
 
-		EntFire("le_laser*", "Kill", 1)
+		// EntFire("le_laser*", "Kill", 1)
 
-
-		delete ::RedSniperLaser
 	}
 
 	// OnGameEvent_mvm_reset_stats = function(_)
@@ -169,14 +167,20 @@
 	// 	LaserCleanup()
 	// }
 
+	FullCleanup = function()
+	{
+		LaserCleanup()
+		delete ::RedSniperLaser
+	}
+
 	OnGameEvent_recalculate_holidays = function(_) 
 	{
 		if (GetRoundState() != 3) return
-		LaserCleanup()
+		FullCleanup()
 	}
 	OnGameEvent_mvm_wave_complete = function(_) 
 	{ 
-		LaserCleanup()
+		FullCleanup()
 	}
 
 	function OnGameEvent_player_spawn(params)
@@ -194,5 +198,8 @@
 for (local i = 1, player; i <= MaxClients(); i++)
 	if (player = PlayerInstanceFromIndex(i), player)
 		RedSniperLaser.PlayerSpawn(player)
+
+RedSniperLaser.LaserCleanup()
+	
 
 __CollectGameEventCallbacks(RedSniperLaser)
