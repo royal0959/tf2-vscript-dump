@@ -1,4 +1,5 @@
 local SNIPER_CLASSNAME = "tf_weapon_sniperrifle"
+local RED_TEAM = 2
 local TFCond_Slowed = 0
 
 function MakeLaserEnts(player)
@@ -99,10 +100,8 @@ function OnGameEvent_mvm_reset_stats(params)
 	local entity = null
 	while (entity = Entities.FindByName(entity, "le_laser"))
 	{
-		printl(entity)
 		local pointer = entity.GetScriptScope().Pointer
 
-		printl(pointer)
 		if (pointer && pointer.IsValid())
 		{
 			entity.SetAbsOrigin(pointer.GetOrigin())
@@ -115,7 +114,6 @@ function OnGameEvent_mvm_reset_stats(params)
 	entity = null
 	while (entity = Entities.FindByName(entity, "le_laser_pointer"))
 	{
-		printl(entity)
 		NetProps.SetPropString(entity, "m_iClassname", "info_particle_system")
 		entity.SetAbsOrigin(Vector(0, -100000, 0))
 		EntFireByHandle(entity, "Kill", "", 1, null, null)
@@ -127,6 +125,9 @@ function OnGameEvent_player_spawn(params)
 	local player = GetPlayerFromUserID(params.userid);
 	if (!player)
 		return;
+
+	if (player.GetTeam() != RED_TEAM)
+		return
 	
 	for (local i = 0; i < 8; i++)
 	{
