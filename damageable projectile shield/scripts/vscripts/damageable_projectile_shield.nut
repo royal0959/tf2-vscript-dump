@@ -38,9 +38,7 @@
 
 	// 	return -1
 	// }
-
-	PlayerSpawn = function(player)
-	{
+	PlayerSpawn = function(player) {
 		// for (local i = 0; i < 8; i++)
 		// {
 		// 	local weapon = NetProps.GetPropEntityArray(player, "m_hMyWeapons", i)
@@ -49,7 +47,7 @@
 
 		// 	if (weapon.GetClassname() != MEDIGUN_CLASSNAME)
 		// 		continue
-				
+
 		// 	weapon.ValidateScriptScope();
 
 		// 	local scriptScope = weapon.GetScriptScope()
@@ -64,12 +62,11 @@
 		NetProps.SetPropFloat(player, "m_Shared.m_flRageMeter", 100)
 	}
 
-	OnScriptHook_OnTakeDamage = function(params)
-	{
+	OnScriptHook_OnTakeDamage = function(params) {
 		local entity = params.const_entity
 		if (entity.IsPlayer())
 			return
-		
+
 		if (entity.GetClassname() != PROJECTILE_SHIELD_CLASSNAME)
 			return
 
@@ -99,28 +96,24 @@
 		EntFireByHandle(entity, "Color", "255 255 255", 0.5, null, null)
 	}
 
-	Cleanup = function()
-	{
-		delete ::DamageableProjectileShield
+	Cleanup = function() {
+		delete::DamageableProjectileShield
 	}
-	
-	OnGameEvent_recalculate_holidays = function(_)
-	{
+
+	OnGameEvent_recalculate_holidays = function(_) {
 		if (GetRoundState() != 3) return
 		Cleanup()
 	}
 
-	OnGameEvent_mvm_wave_complete = function(_)
-	{
-		Cleanup() 
+	OnGameEvent_mvm_wave_complete = function(_) {
+		Cleanup()
 	}
 
-	OnGameEvent_player_spawn = function(params)
-	{
+	OnGameEvent_player_spawn = function(params) {
 		local player = GetPlayerFromUserID(params.userid);
 		if (!player)
 			return;
-		
+
 		PlayerSpawn(player)
 	}
 }
@@ -128,5 +121,5 @@
 for (local i = 1, player; i <= MaxClients(); i++)
 	if (player = PlayerInstanceFromIndex(i), player)
 		DamageableProjectileShield.PlayerSpawn(player)
-	
+
 __CollectGameEventCallbacks(DamageableProjectileShield)
