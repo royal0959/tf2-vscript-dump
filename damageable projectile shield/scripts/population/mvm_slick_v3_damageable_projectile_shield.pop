@@ -41,16 +41,38 @@ WaveSchedule
 			Name "1"
 			Where spawnbot
 			TotalCount 100
-			MaxActive 15
-			SpawnCount 15
+			MaxActive 2
+			SpawnCount 2
 			WaitBeforeStarting 0
 			WaitBetweenSpawns 0
 			TotalCurrency 5000
 
-			TFBot
+			Squad
 			{
-				Class Soldier
+				TFBot
+				{
+					Class Soldier
+					Attributes SuppressFire
+				}
+				TFBot
+				{
+					Name "Shield Medic"
+					Class Medic
+					ClassIcon medic_shield // Custom icon
+					Skill Expert
+					Attributes SpawnWithFullCharge
+					Attributes ProjectileShield
+					Attributes IgnoreEnemies
+					WeaponRestrictions SecondaryOnly
+					ItemAttributes
+					{
+						ItemName "TF_WEAPON_MEDIGUN"
+						"generate rage on heal"  1 // Level 1 Projectile Shield
+						// "increase buff duration" 2
+					}
+				}
 			}
+
 		}
 	}
 	Wave // Wave 2
