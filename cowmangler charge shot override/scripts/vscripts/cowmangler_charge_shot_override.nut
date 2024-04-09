@@ -96,7 +96,7 @@ CircuitBallMaker.SetClip1(-1)
 	}
 
 	Cleanup = function() {
-		delete::MyNamespace
+		delete::ChargeShotOverride
 	}
 
 	OnGameEvent_recalculate_holidays = function(_) {
@@ -116,6 +116,8 @@ CircuitBallMaker.SetClip1(-1)
 		PlayerSpawn(player)
 	}
 }
+
+ChargeShotOverride.CircuitBallMaker <- CircuitBallMaker
 
 // spoof a player spawn when the wave initializes
 for (local i = 1, player; i <= MaxClients(); i++)
