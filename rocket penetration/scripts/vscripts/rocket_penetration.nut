@@ -11,7 +11,10 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 ::RocketPenetration <- {
 
 	ROCKET_LAUNCHER_CLASSNAMES = [
-		"tf_weapon_rocketlauncher"
+		"tf_weapon_rocketlauncher",
+		"tf_weapon_rocketlauncher_airstrike",
+		"tf_weapon_rocketlauncher_directhit",
+		"tf_weapon_particle_cannon",
 	]
 
 	FindRocket = function(owner) {
@@ -44,6 +47,14 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 					continue
 				}
 
+				entity.ValidateScriptScope()
+				entity.GetScriptScope().isPenetrateMimicRocket <- true
+				entity.GetScriptScope().originalRocket <- rocket
+				entity.GetScriptScope().penetrationCount <- (rocket.GetScriptScope().penetrationCount - 1)
+
+				// NetProps.SetPropString(entity, "m_iClassname", rocket.GetClassname())
+				NetProps.SetPropEntity(entity, "m_hLauncher", NetProps.GetPropEntity(rocket, "m_hLauncher"))
+
 				entity.SetOwner(owner)
 				break
 			}
@@ -71,16 +82,16 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		if (traceTableWorldSpawn.hit && traceTableWorldSpawn.enthit)
 		{
-			local className = traceTableWorldSpawn.enthit.GetClassname()
+			// local className = traceTableWorldSpawn.enthit.GetClassname()
 
 			// printl(traceTableWorldSpawn.enthit.GetClassname())
 
-			if (className == "worldspawn" || className == "func_brush")
-			{
-				self.SetSolid(Constants.ESolidType.SOLID_BBOX)
-				NetProps.SetPropString(self, "m_iszScriptThinkFunction", "")
-				return -1
-			}
+			// if (className == "worldspawn" || className == "func_brush")
+			// {
+			self.SetSolid(Constants.ESolidType.SOLID_BBOX)
+			NetProps.SetPropString(self, "m_iszScriptThinkFunction", "")
+			return -1
+			// }
 		}
 
 
@@ -104,6 +115,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			return -1
 
 		collidedTargets.append(traceTable.enthit)
+		penetrationCount++
 
 		DetonateRocket()
 
@@ -118,6 +130,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		rocketScope.lastRocketOrigin <- rocket.GetOrigin()
 
 		rocketScope.collidedTargets <- []
+		rocketScope.penetrationCount <- 0
 		rocketScope.StickyMaker <- StickyMaker
 		rocketScope.DetonateRocket <- DetonateRocket
 		rocketScope.RocketThink <- RocketThink
@@ -151,6 +164,43 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			last_fire_time = fire_time
 		}
 		return -1
+	}
+
+	OnScriptHook_OnTakeDamage = function(params) {
+		local entity = params.const_entity
+		if (!entity.IsPlayer())
+			return
+
+		local inflictor = params.inflictor
+
+		local inflictorStr
+		if (params.inflictor)
+			inflictorStr = params.inflictor.tostring()
+		else
+			inflictorStr = "null"
+
+		local weaponStr
+		if (params.weapon)
+			weaponStr = params.weapon.tostring()
+		else
+			weaponStr = "null"
+
+		local attackerStr
+		if (params.attacker)
+			attackerStr = params.attacker.tostring()
+		else
+			attackerStr = "null"
+
+		printl(format("Inflictor: %s; Weapon: %s; Attacker: %s", inflictorStr, weaponStr, params.attacker.tostring()))
+
+		inflictor.ValidateScriptScope()
+		local inflictorScope = inflictor.GetScriptScope()
+
+		if (!("isPenetrateMimicRocket" in inflictorScope))
+			return
+
+		params.inflictor = inflictorScope.originalRocket // set default kill icon to launcher's killicon
+		params.player_penetration_count = inflictorScope.penetrationCount // change killicon to penetrate after rocket has penetrated at least 1 enemy
 	}
 
 	PlayerSpawn = function(player) {
