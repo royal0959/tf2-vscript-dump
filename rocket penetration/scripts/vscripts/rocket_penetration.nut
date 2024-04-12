@@ -33,37 +33,89 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 	DetonateRocket = function () {
 		local owner = self.GetOwner()
 
-		NetProps.SetPropBool(StickyMaker, "m_bCrits", NetProps.GetPropBool(self, "m_bCritical"))
+		// NetProps.SetPropBool(StickyMaker, "m_bCrits", NetProps.GetPropBool(self, "m_bCritical"))
 
-		StickyMaker.SetAbsOrigin(self.GetOrigin())
-		StickyMaker.SetTeam(owner.GetTeam())
-		StickyMaker.SetOwner(owner)
+		// StickyMaker.SetAbsOrigin(self.GetOrigin())
+		// StickyMaker.SetTeam(owner.GetTeam())
+		// StickyMaker.SetOwner(owner)
 
-		StickyMaker.ValidateScriptScope()
-		StickyMaker.GetScriptScope().rocket <- self
-		StickyMaker.GetScriptScope().SetProjectileOwnerAndDetonate <- function () {
-			for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_pipe", self.GetOrigin(), 10);) {
-				if (entity.GetOwner() != null) {
-					continue
-				}
+		// StickyMaker.ValidateScriptScope()
+		// StickyMaker.GetScriptScope().rocket <- self
+		// StickyMaker.GetScriptScope().SetProjectileOwnerAndDetonate <- function () {
+		// 	for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_pipe", self.GetOrigin(), 10);) {
+		// 		if (entity.GetOwner() != null) {
+		// 			continue
+		// 		}
 
-				entity.ValidateScriptScope()
-				entity.GetScriptScope().isPenetrateMimicRocket <- true
-				entity.GetScriptScope().originalRocket <- rocket
-				entity.GetScriptScope().penetrationCount <- (rocket.GetScriptScope().penetrationCount - 1)
+		// 		entity.ValidateScriptScope()
+		// 		entity.GetScriptScope().isPenetrateMimicRocket <- true
+		// 		entity.GetScriptScope().originalRocket <- rocket
+		// 		entity.GetScriptScope().penetrationCount <- (rocket.GetScriptScope().penetrationCount - 1)
 
-				// NetProps.SetPropString(entity, "m_iClassname", rocket.GetClassname())
-				NetProps.SetPropEntity(entity, "m_hLauncher", NetProps.GetPropEntity(rocket, "m_hLauncher"))
+		// 		// NetProps.SetPropString(entity, "m_iClassname", rocket.GetClassname())
+		// 		NetProps.SetPropEntity(entity, "m_hLauncher", NetProps.GetPropEntity(rocket, "m_hLauncher"))
 
-				entity.SetOwner(owner)
-				break
+		// 		entity.SetOwner(owner)
+		// 		break
+		// 	}
+
+		// 	EntFireByHandle(self, "DetonateStickies", null, -1, null, null)
+		// }
+
+		// EntFireByHandle(StickyMaker, "FireOnce", null, -1, null, null)
+		// EntFireByHandle(StickyMaker, "CallScriptFunction", "SetProjectileOwnerAndDetonate", 0.1, null, null)
+
+		local launcher = NetProps.GetPropEntity(self, "m_hLauncher")
+
+		// preserve old charge meter and ammo count
+		local charge = NetProps.GetPropFloat(owner, "m_Shared.m_flItemChargeMeter")
+		local nextAttack = NetProps.GetPropFloat(launcher, "m_flNextPrimaryAttack")
+		local lastFire = NetProps.GetPropFloat(launcher, "m_flLastFireTime")
+		local clip =  launcher.Clip1()
+		local energy = NetProps.GetPropFloat(launcher, "m_flEnergy")
+
+		// set up stuff needed to ensure the weapon always fires
+		launcher.GetScriptScope().forceAttacking = true
+
+		launcher.SetClip1(99)
+		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", 100.0)
+		NetProps.SetPropBool(owner, "m_bLagCompensation", false)
+		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", 0)
+		NetProps.SetPropFloat(launcher, "m_flEnergy", 100.0)
+		NetProps.SetPropEntity(launcher, "m_hOwner", owner)
+
+		launcher.AddAttribute("crit mod disabled hidden", 1, -1)
+		launcher.PrimaryAttack()
+		launcher.RemoveAttribute("crit mod disabled hidden")
+
+		// revert changes
+		launcher.GetScriptScope().forceAttacking = false
+
+		launcher.SetClip1(clip)
+		NetProps.SetPropBool(owner, "m_bLagCompensation", true)
+		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", nextAttack)
+		NetProps.SetPropFloat(launcher, "m_flEnergy", energy)
+		NetProps.SetPropFloat(launcher, "m_flLastFireTime", lastFire)
+		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", charge)
+
+		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 100);) {
+			if (entity.GetOwner() != owner) {
+				continue
 			}
 
-			EntFireByHandle(self, "DetonateStickies", null, -1, null, null)
-		}
+			if ("isCustomRocket" in entity.GetScriptScope())
+				continue
 
-		EntFireByHandle(StickyMaker, "FireOnce", null, -1, null, null)
-		EntFireByHandle(StickyMaker, "CallScriptFunction", "SetProjectileOwnerAndDetonate", 0.1, null, null)
+			NetProps.SetPropBool(self, "m_bCritical", NetProps.GetPropBool(self, "m_bCritical"))
+			entity.SetAbsOrigin(self.GetOrigin())
+
+			entity.ValidateScriptScope()
+			entity.GetScriptScope().isPenetrateMimicRocket <- true
+			entity.GetScriptScope().originalRocket <- self
+			entity.GetScriptScope().penetrationCount <- (self.GetScriptScope().penetrationCount - 1)
+
+			break
+		}
 	}
 
 	RocketThink = function() {
@@ -73,7 +125,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		traceTableWorldSpawn <- {
 			start = lastRocketOrigin,
-			end = origin + (self.GetForwardVector() * 200)
+			end = origin + (self.GetForwardVector() * 50)
 			mask = MASK_SOLID_BRUSHONLY
 			ignore = self.GetOwner()
 		}
@@ -127,6 +179,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		rocket.ValidateScriptScope()
 		local rocketScope = rocket.GetScriptScope()
+		rocketScope.isCustomRocket <- true
 		rocketScope.lastRocketOrigin <- rocket.GetOrigin()
 
 		rocketScope.collidedTargets <- []
@@ -150,12 +203,16 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			return
 		}
 
+		// don't apply penetration to cowmangler charge shot which unfortunately doesn't work
+		if (NetProps.GetPropBool(rocket, "m_bChargedShot"))
+			return
+
 		ApplyPenetrationToRocket(owner, rocket)
 	}
 
 	CheckWeaponFire = function() {
 		local fire_time = NetProps.GetPropFloat(self, "m_flLastFireTime")
-		if (fire_time > last_fire_time) {
+		if (fire_time > last_fire_time && !forceAttacking) {
 			local owner = self.GetOwner()
 			if (owner) {
 				OnShot(owner)
@@ -173,33 +230,12 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		local inflictor = params.inflictor
 
-		local inflictorStr
-		if (params.inflictor)
-			inflictorStr = params.inflictor.tostring()
-		else
-			inflictorStr = "null"
-
-		local weaponStr
-		if (params.weapon)
-			weaponStr = params.weapon.tostring()
-		else
-			weaponStr = "null"
-
-		local attackerStr
-		if (params.attacker)
-			attackerStr = params.attacker.tostring()
-		else
-			attackerStr = "null"
-
-		printl(format("Inflictor: %s; Weapon: %s; Attacker: %s", inflictorStr, weaponStr, params.attacker.tostring()))
-
 		inflictor.ValidateScriptScope()
 		local inflictorScope = inflictor.GetScriptScope()
 
 		if (!("isPenetrateMimicRocket" in inflictorScope))
 			return
 
-		params.inflictor = inflictorScope.originalRocket // set default kill icon to launcher's killicon
 		params.player_penetration_count = inflictorScope.penetrationCount // change killicon to penetrate after rocket has penetrated at least 1 enemy
 	}
 
@@ -215,6 +251,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			weapon.ValidateScriptScope();
 			local weaponScriptScope = weapon.GetScriptScope()
 			weaponScriptScope.last_fire_time <- 0.0
+			weaponScriptScope.forceAttacking <- false
 
 			weaponScriptScope.CheckWeaponFire <- CheckWeaponFire
 			weaponScriptScope.FindRocket <- FindRocket
