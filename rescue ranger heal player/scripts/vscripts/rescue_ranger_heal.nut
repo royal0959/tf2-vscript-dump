@@ -70,8 +70,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		if (healAmount > 0)
 		{
-			target.TakeDamageEx(self, owner, primaryWeapon, Vector(0, 0, 0), owner.GetOrigin(), -healAmount, Constants.FDmgType.DMG_ENERGYBEAM)
-			// target.TakeDamage(healAmount, Constants.FDmgType.DMG_ENERGYBEAM, null)
+			target.TakeDamageEx(self, owner, primaryWeapon, Vector(0, 0, 0), owner.GetOrigin(), -healAmount, Constants.FDmgType.DMG_BULLET)
 		}
 
 
@@ -79,41 +78,9 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		self.Kill()
 	}
 
-	ProjectileThink = function() {
-		// local MASK_PLAYERSOLID = 33636363
-
-		// local owner = self.GetOwner()
-
-		// local origin = self.GetOrigin()
-
-		// traceTable <- {
-		// 	start = lastProjectileOrigin,
-		// 	// end = origin + (self.GetForwardVector() * 50)
-		// 	end = origin
-		// 	ignore = owner
-		// 	mask = MASK_PLAYERSOLID
-		// }
-
-		// TraceLineEx(traceTable)
-
-		// lastProjectileOrigin = origin
-
-		// if (!traceTable.hit)
-		// 	return -1
-
-		// if (!traceTable.enthit)
-		// 	return -1
-
-		// if (!traceTable.enthit.IsPlayer())
-		// 	return -1
-
-		// if (traceTable.enthit.GetTeam() != owner.GetTeam())
-		// 	return -1
-
-		// HealTarget(traceTable.enthit)
+	BoltThink = function() {
 		local owner = self.GetOwner()
 
-		printl("think")
 		for (local player; player = Entities.FindByClassnameWithin(player, "player", self.GetOrigin(), 100);) {
 			if (player == owner)
 				continue
@@ -129,20 +96,16 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 	}
 
 	ApplyBoltHealOnHit = function(owner, bolt) {
-		printl("apply")
-		// bolt.SetSolid(Constants.ESolidType.SOLID_NONE)
-
 		bolt.ValidateScriptScope()
 		local boltScope = bolt.GetScriptScope()
 		boltScope.isHealPlayerBolt <- true
 		boltScope.lastProjectileOrigin <- bolt.GetOrigin()
 
 		boltScope.HealTarget <- HealTarget
-		boltScope.ProjectileThink <- ProjectileThink
+		boltScope.BoltThink <- BoltThink
 
 		boltScope.ApplyThink <- function () {
-			print("add")
-			AddThinkToEnt(bolt, "ProjectileThink")
+			AddThinkToEnt(bolt, "BoltThink")
 		}
 
 		EntFireByHandle(bolt, "CallScriptFunction", "ApplyThink", 0.015, null, null)
@@ -222,7 +185,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			weaponScriptScope.OnShot <- OnShot
 
 			weaponScriptScope.HealTarget <- HealTarget
-			weaponScriptScope.ProjectileThink <- ProjectileThink
+			weaponScriptScope.BoltThink <- BoltThink
 
 			AddThinkToEnt(weapon, "CheckWeaponFire")
 		}
