@@ -1,22 +1,7 @@
-StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
-	TeamNum = 2,
-	WeaponType = 3, // sticky
-	Damage = 70,
-	Crits = false,
-	SplashRadius = 146,
-	SpeedMax = 0,
-	SpeedMin = 0,
-})
+local HEAL_METAL_CONSUMPTION_RATIO = 2 // consume X metals for each health point healed
+local HEAL_AMOUNT_MAX = 60
 
-::RocketPenetration <- {
-
-	ROCKET_LAUNCHER_CLASSNAMES = [
-		"tf_weapon_rocketlauncher",
-		"tf_weapon_rocketlauncher_airstrike",
-		"tf_weapon_rocketlauncher_directhit",
-		"tf_weapon_particle_cannon",
-	]
-
+::RescueRangerHealOnHit  <- {
 	FindBolt = function(owner) {
 		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_arrow", owner.GetOrigin(), 100);) {
 			if (entity.GetOwner() != owner) {
@@ -36,13 +21,8 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 	}
 
 	HealTarget = function (target) {
-		// local newHealth = target.GetHealth() + 60
-
-		// local maxHealth = target.GetMaxHealth()
-		// if (newHealth > maxHealth)
-		// 	newHealth = maxHealth
-
 		local owner = self.GetOwner()
+
 		local primaryWeapon
 
 		for (local i = 0; i < 8; i++) {
@@ -56,7 +36,15 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			primaryWeapon = weapon
 		}
 
-		local healAmount = 60
+		local metal = NetProps.GetPropIntArray(owner, "m_iAmmo", 3)
+
+		local healAmount = HEAL_AMOUNT_MAX
+
+		local maxPossibleMetalConsumption = floor(HEAL_AMOUNT_MAX / HEAL_METAL_CONSUMPTION_RATIO)
+		if (maxPossibleMetalConsumption > metal)
+		{
+			healAmount = metal * HEAL_METAL_CONSUMPTION_RATIO
+		}
 
 		local currentHealth = target.GetHealth()
 		local maxHealth = target.GetMaxHealth()
@@ -68,29 +56,66 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 				healAmount = 0
 		}
 
+		local metalConsumption = floor(healAmount / HEAL_METAL_CONSUMPTION_RATIO)
+		metal -= metalConsumption
+
+		if (metal < 0)
+			metal = 0
+		NetProps.SetPropIntArray(owner, "m_iAmmo", metal, 3)
+
 		if (healAmount > 0)
 		{
 			target.TakeDamageEx(self, owner, primaryWeapon, Vector(0, 0, 0), owner.GetOrigin(), -healAmount, Constants.FDmgType.DMG_BULLET)
 		}
 
-
 		NetProps.SetPropString(self, "m_iszScriptThinkFunction", "")
-		self.Kill()
+		// self.Kill()
 	}
 
 	BoltThink = function() {
 		local owner = self.GetOwner()
 
-		for (local player; player = Entities.FindByClassnameWithin(player, "player", self.GetOrigin(), 100);) {
-			if (player == owner)
-				continue
+		local MASK_PLAYERSOLID = 33636363
 
-			if (player.GetTeam() != owner.GetTeam())
-				continue
+		local owner = self.GetOwner()
 
-			HealTarget(player)
-			break
+		local origin = self.GetOrigin()
+
+		traceTable <- {
+			start = lastProjectileOrigin,
+			end = origin + (self.GetForwardVector() * 1000)
+			ignore = owner
+			mask = MASK_PLAYERSOLID
 		}
+
+		TraceLineEx(traceTable)
+
+		lastProjectileOrigin = origin
+
+		if (!traceTable.hit)
+			return -1
+
+		if (!traceTable.enthit)
+			return -1
+
+		if (!traceTable.enthit.IsPlayer())
+			return -1
+
+		if (traceTable.enthit.GetTeam() != owner.GetTeam())
+			return -1
+
+		HealTarget(traceTable.enthit)
+
+		// for (local player; player = Entities.FindByClassnameWithin(player, "player", self.GetOrigin(), 100);) {
+		// 	if (player == owner)
+		// 		continue
+
+		// 	if (player.GetTeam() != owner.GetTeam())
+		// 		continue
+
+		// 	HealTarget(player)
+		// 	break
+		// }
 
 		return -1
 	}
@@ -150,7 +175,9 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		if (params.damage > 0)
 			return
 
-		// params.damage = -params.damage
+		local damage = params.damage
+
+		params.damage -= 1
 		params.force_friendly_fire = true
 
 	 	local playerManager = Entities.FindByClassname(null, "tf_player_manager")
@@ -159,7 +186,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		local patientUserid = NetProps.GetPropIntArray(playerManager, "m_iUserID", entity.entindex())
 
 		SendGlobalGameEvent("player_healed",  {
-			amount = -params.damage,
+			amount = -damage,
 			healer = healerUserid,
 			patient = patientUserid,
 			priority = 1
@@ -192,7 +219,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 	}
 
 	Cleanup = function() {
-		delete::RocketPenetration
+		delete::RescueRangerHealOnHit
 	}
 
 	OnGameEvent_recalculate_holidays = function(_) {
@@ -213,11 +240,9 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 	}
 }
 
-RocketPenetration.StickyMaker <- StickyMaker
-
 // spoof a player spawn when the wave initializes
 for (local i = 1, player; i <= MaxClients(); i++)
 	if (player = PlayerInstanceFromIndex(i), player)
-		RocketPenetration.PlayerSpawn(player)
+		RescueRangerHealOnHit.PlayerSpawn(player)
 
-__CollectGameEventCallbacks(RocketPenetration)
+__CollectGameEventCallbacks(RescueRangerHealOnHit)
