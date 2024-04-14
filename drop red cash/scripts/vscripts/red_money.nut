@@ -23,7 +23,6 @@
 
 		local mvmStats = Entities.FindByClassname(null, "tf_mann_vs_machine_stats")
 
-		local currentCreditsDropped = NetProps.GetPropInt(mvmStats, "m_currentWaveStats.nCreditsDropped")
 		NetProps.SetPropInt(mvmStats, "m_currentWaveStats.nCreditsAcquired", NetProps.GetPropInt(mvmStats, "m_currentWaveStats.nCreditsAcquired") + packPrice)
 
 		for (local i = 1, player; i <= MaxClients(); i++)
