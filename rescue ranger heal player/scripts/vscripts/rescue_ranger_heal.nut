@@ -1,4 +1,4 @@
-local HEAL_METAL_CONSUMPTION_RATIO = 2 // consume X metals for each health point healed
+local HEAL_METAL_CONSUMPTION_RATIO = 4 // consume X metals for each health point healed
 local HEAL_AMOUNT_MAX = 60
 
 ::RescueRangerHealOnHit  <- {
