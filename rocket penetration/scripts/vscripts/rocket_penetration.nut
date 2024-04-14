@@ -82,7 +82,6 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		NetProps.SetPropBool(owner, "m_bLagCompensation", false)
 		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", 0)
 		NetProps.SetPropFloat(launcher, "m_flEnergy", 100.0)
-		NetProps.SetPropEntity(launcher, "m_hOwner", owner)
 
 		launcher.AddAttribute("crit mod disabled hidden", 1, -1)
 		launcher.PrimaryAttack()
@@ -167,9 +166,13 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			return -1
 
 		collidedTargets.append(traceTable.enthit)
-		penetrationCount++
 
-		DetonateRocket()
+		// arrow free penetration through allies without detonating
+		if (traceTable.enthit.GetTeam() != player.GetTeam())
+		{
+			penetrationCount++
+			DetonateRocket()
+		}
 
 		return -1
 	}
@@ -203,7 +206,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			return
 		}
 
-		// don't apply penetration to cowmangler charge shot which unfortunately doesn't work
+		// don't apply penetration to cowmangler charge shot, because unfortunately it doesn't work :(
 		if (NetProps.GetPropBool(rocket, "m_bChargedShot"))
 			return
 
