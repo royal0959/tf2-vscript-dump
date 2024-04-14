@@ -7,4 +7,4 @@ A rogues gallery of personal vscript projects
 * ``damageable projectile shield`` - Makes projectile shields lose duration upon blocking damage
 * ``rocket penetration`` - Allows rockets to penetration enemies, dealing damage each time
 * ``red money`` - All bots drop red money on dead as if they were killed by a sniper rifle
-* ``rescue ranger heal player`` -- Rescue ranger bolts heal teammates on hit, consuming metal the same way it does when healing buildings
+* ``rescue ranger heal player`` - Rescue ranger bolts heal teammates on hit, consuming metal the same way it does when healing buildings
