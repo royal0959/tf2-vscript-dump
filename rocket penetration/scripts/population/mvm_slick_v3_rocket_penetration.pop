@@ -16,12 +16,12 @@ WaveSchedule
 			Action RunScriptCode
 			Param "
 				// Load popextensions script
-				IncludeScript(`popextensions_main.nut`, getroottable())
+				// IncludeScript(`popextensions_main.nut`, getroottable())
 
-				MissionAttrs({
-					`NoReanimators`: 1
-					`WaveStartCountdown`: 1
-				})
+				// MissionAttrs({
+				// 	`NoReanimators`: 1
+				// 	`WaveStartCountdown`: 1
+				// })
 
 				IncludeScript(`rocket_penetration.nut`)
 			"

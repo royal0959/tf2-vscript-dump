@@ -36,6 +36,22 @@
 		fakePack.DispatchSpawn()
 		fakePack.SetModel(modelPath)
 		fakePack.SetAbsOrigin(origin)
+
+		// position to ground, as fake pack won't have any velocity
+		traceWorld <- {
+			start = origin,
+			end = origin - Vector(0, 0, 50000)
+			mask = MASK_SOLID_BRUSHONLY
+		}
+
+		TraceLineEx(traceWorld)
+
+		if (traceWorld.hit)
+		{
+			fakePack.SetAbsOrigin(traceWorld.pos + Vector(0, 0, 5))
+		}
+		else
+			fakePack.SetAbsOrigin(origin)
 	}
 
 	OnGameEvent_player_death = function(params) {
