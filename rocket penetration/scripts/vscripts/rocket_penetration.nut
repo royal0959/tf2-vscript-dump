@@ -21,8 +21,10 @@
 		launcher.GetScriptScope().forceAttacking = false
 		launcher.GetScriptScope().waitingForNextShot = false
 
-		launcher.SetClip1(previousData.clip)
-		NetProps.SetPropBool(owner, "m_bLagCompensation", true)
+		if (launcher.GetClassname() != "tf_weapon_particle_cannon")
+			launcher.SetClip1(previousData.clip)
+
+		// NetProps.SetPropBool(owner, "m_bLagCompensation", true)
 		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", previousData.nextAttack)
 		NetProps.SetPropFloat(launcher, "m_flEnergy", previousData.energy)
 		NetProps.SetPropFloat(launcher, "m_flLastFireTime", previousData.lastFire)
@@ -125,11 +127,13 @@
 
 		launcher.GetScriptScope().forceAttacking = true
 
-		launcher.SetClip1(99)
+		if (launcher.GetClassname() != "tf_weapon_particle_cannon")
+			launcher.SetClip1(99)
+
 		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", 100.0)
-		NetProps.SetPropBool(owner, "m_bLagCompensation", false)
+		// NetProps.SetPropBool(owner, "m_bLagCompensation", false)
 		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", 0)
-		NetProps.SetPropFloat(launcher, "m_flEnergy", 100.0)
+		NetProps.SetPropFloat(launcher, "m_flEnergy", 100)
 
 		launcher.AddAttribute("crit mod disabled hidden", 1, -1)
 
