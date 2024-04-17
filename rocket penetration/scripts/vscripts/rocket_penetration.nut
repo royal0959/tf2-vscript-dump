@@ -1,13 +1,3 @@
-StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
-	TeamNum = 2,
-	WeaponType = 3, // sticky
-	Damage = 70,
-	Crits = false,
-	SplashRadius = 146,
-	SpeedMax = 0,
-	SpeedMin = 0,
-})
-
 ::RocketPenetration <- {
 
 	ROCKET_LAUNCHER_CLASSNAMES = [
@@ -17,6 +7,50 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		"tf_weapon_particle_cannon",
 	]
 
+
+	RevertLauncherTempChanges = function(launcher) {
+		local owner = launcher.GetOwner()
+
+		launcher.RemoveAttribute("crit mod disabled hidden")
+
+		local previousData = launcher.GetScriptScope().previousData
+
+		local rocket = previousData.rocket
+
+		// revert changes
+		launcher.GetScriptScope().forceAttacking = false
+		launcher.GetScriptScope().waitingForNextShot = false
+
+		launcher.SetClip1(previousData.clip)
+		NetProps.SetPropBool(owner, "m_bLagCompensation", true)
+		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", previousData.nextAttack)
+		NetProps.SetPropFloat(launcher, "m_flEnergy", previousData.energy)
+		NetProps.SetPropFloat(launcher, "m_flLastFireTime", previousData.lastFire)
+		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", previousData.charge)
+
+		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 100);) {
+			if (entity.GetOwner() != owner) {
+				continue
+			}
+
+			if ("isCustomRocket" in entity.GetScriptScope())
+				continue
+
+			if ("isPenetrateMimicRocket" in entity.GetScriptScope())
+				continue
+
+			NetProps.SetPropBool(self, "m_bCritical", NetProps.GetPropBool(rocket, "m_bCritical"))
+			entity.SetAbsOrigin(rocket.GetOrigin())
+
+			entity.ValidateScriptScope()
+			entity.GetScriptScope().penetrationCount <- (rocket.GetScriptScope().penetrationCount - 1)
+			entity.GetScriptScope().originalRocket <- rocket
+			entity.GetScriptScope().isPenetrateMimicRocket <- true
+
+			break
+		}
+	}
+
 	FindRocket = function(owner) {
 		local entity = null
 		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 100);) {
@@ -24,13 +58,19 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 				continue
 			}
 
+			entity.ValidateScriptScope()
+			if ("chosenAsPenetrationRocket" in entity.GetScriptScope())
+				continue
+
+			entity.GetScriptScope().chosenAsPenetrationRocket <- true
+
 			return entity
 		}
 
 		return null
 	}
 
-	DetonateRocket = function () {
+	DetonateRocket = function() {
 		local owner = self.GetOwner()
 
 		// NetProps.SetPropBool(StickyMaker, "m_bCrits", NetProps.GetPropBool(self, "m_bCritical"))
@@ -66,15 +106,23 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		// EntFireByHandle(StickyMaker, "CallScriptFunction", "SetProjectileOwnerAndDetonate", 0.1, null, null)
 
 		local launcher = NetProps.GetPropEntity(self, "m_hLauncher")
+		local launcherScope = launcher.GetScriptScope()
 
-		// preserve old charge meter and ammo count
-		local charge = NetProps.GetPropFloat(owner, "m_Shared.m_flItemChargeMeter")
-		local nextAttack = NetProps.GetPropFloat(launcher, "m_flNextPrimaryAttack")
-		local lastFire = NetProps.GetPropFloat(launcher, "m_flLastFireTime")
-		local clip =  launcher.Clip1()
-		local energy = NetProps.GetPropFloat(launcher, "m_flEnergy")
+		// local charge = NetProps.GetPropFloat(owner, "m_Shared.m_flItemChargeMeter")
+		// local nextAttack = NetProps.GetPropFloat(launcher, "m_flNextPrimaryAttack")
+		// local lastFire = NetProps.GetPropFloat(launcher, "m_flLastFireTime")
+		// local clip = launcher.Clip1()
+		// local energy = NetProps.GetPropFloat(launcher, "m_flEnergy")
 
-		// set up stuff needed to ensure the weapon always fires
+		launcherScope.previousData <- {
+			rocket = self,
+			charge = NetProps.GetPropFloat(owner, "m_Shared.m_flItemChargeMeter"),
+			nextAttack = NetProps.GetPropFloat(launcher, "m_flNextPrimaryAttack"),
+			lastFire = NetProps.GetPropFloat(launcher, "m_flLastFireTime"),
+			clip = launcher.Clip1(),
+			energy = NetProps.GetPropFloat(launcher, "m_flEnergy")
+		}
+
 		launcher.GetScriptScope().forceAttacking = true
 
 		launcher.SetClip1(99)
@@ -85,43 +133,44 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		launcher.AddAttribute("crit mod disabled hidden", 1, -1)
 
-		// if (NetProps.GetPropBool(self, "m_bChargedShot"))
-		// {
-		// 	launcher.SecondaryAttack()
-		// 	NetProps.SetPropFloat(launcher, "m_flChargeBeginTime", NetProps.GetPropFloat(launcher, "m_flChargeBeginTime") - 5.0)
-		// }
-		// else
+		if (NetProps.GetPropBool(self, "m_bChargedShot")) {
+			launcher.GetScriptScope().waitingForNextShot = true
+			launcher.SecondaryAttack()
+			NetProps.SetPropFloat(launcher, "m_flChargeBeginTime", NetProps.GetPropFloat(launcher, "m_flChargeBeginTime") - 2.0)
+		} else {
 			launcher.PrimaryAttack()
+			RevertLauncherTempChanges(launcher)
 
-		launcher.RemoveAttribute("crit mod disabled hidden")
+			// launcher.RemoveAttribute("crit mod disabled hidden")
 
-		// revert changes
-		launcher.GetScriptScope().forceAttacking = false
+			// // revert changes
+			// launcher.GetScriptScope().forceAttacking = false
 
-		launcher.SetClip1(clip)
-		NetProps.SetPropBool(owner, "m_bLagCompensation", true)
-		NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", nextAttack)
-		NetProps.SetPropFloat(launcher, "m_flEnergy", energy)
-		NetProps.SetPropFloat(launcher, "m_flLastFireTime", lastFire)
-		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", charge)
+			// launcher.SetClip1(clip)
+			// NetProps.SetPropBool(owner, "m_bLagCompensation", true)
+			// NetProps.SetPropFloat(launcher, "m_flNextPrimaryAttack", nextAttack)
+			// NetProps.SetPropFloat(launcher, "m_flEnergy", energy)
+			// NetProps.SetPropFloat(launcher, "m_flLastFireTime", lastFire)
+			// NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", charge)
 
-		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 100);) {
-			if (entity.GetOwner() != owner) {
-				continue
-			}
+			// for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 100);) {
+			// 	if (entity.GetOwner() != owner) {
+			// 		continue
+			// 	}
 
-			if ("isCustomRocket" in entity.GetScriptScope())
-				continue
+			// 	if ("isCustomRocket" in entity.GetScriptScope())
+			// 		continue
 
-			NetProps.SetPropBool(self, "m_bCritical", NetProps.GetPropBool(self, "m_bCritical"))
-			entity.SetAbsOrigin(self.GetOrigin())
+			// 	NetProps.SetPropBool(self, "m_bCritical", NetProps.GetPropBool(self, "m_bCritical"))
+			// 	entity.SetAbsOrigin(self.GetOrigin())
 
-			entity.ValidateScriptScope()
-			entity.GetScriptScope().isPenetrateMimicRocket <- true
-			entity.GetScriptScope().originalRocket <- self
-			entity.GetScriptScope().penetrationCount <- (self.GetScriptScope().penetrationCount - 1)
+			// 	entity.ValidateScriptScope()
+			// 	entity.GetScriptScope().isPenetrateMimicRocket <- true
+			// 	entity.GetScriptScope().originalRocket <- self
+			// 	entity.GetScriptScope().penetrationCount <- (self.GetScriptScope().penetrationCount - 1)
 
-			break
+			// 	break
+			// }
 		}
 	}
 
@@ -139,8 +188,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		TraceLineEx(traceTableWorldSpawn)
 
-		if (traceTableWorldSpawn.hit && traceTableWorldSpawn.enthit)
-		{
+		if (traceTableWorldSpawn.hit && traceTableWorldSpawn.enthit) {
 			// local className = traceTableWorldSpawn.enthit.GetClassname()
 
 			// printl(traceTableWorldSpawn.enthit.GetClassname())
@@ -175,8 +223,7 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		collidedTargets.append(traceTable.enthit)
 
 		// arrow free penetration through allies without detonating
-		if (traceTable.enthit.GetTeam() != self.GetOwner().GetTeam())
-		{
+		if (traceTable.enthit.GetTeam() != self.GetOwner().GetTeam()) {
 			penetrationCount++
 			DetonateRocket()
 		}
@@ -194,11 +241,11 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 
 		rocketScope.collidedTargets <- []
 		rocketScope.penetrationCount <- 0
-		rocketScope.StickyMaker <- StickyMaker
 		rocketScope.DetonateRocket <- DetonateRocket
 		rocketScope.RocketThink <- RocketThink
+		rocketScope.RevertLauncherTempChanges <- RevertLauncherTempChanges
 
-		rocketScope.ApplyThink <- function () {
+		rocketScope.ApplyThink <-  function() {
 			AddThinkToEnt(rocket, "RocketThink")
 		}
 
@@ -213,18 +260,18 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			return
 		}
 
-		rocket.ValidateScriptScope()
-		if ("chosenAsPenetrationRocket" in rocket.GetScriptScope())
+		if (waitingForNextShot)
+		{
+			RevertLauncherTempChanges(self)
 			return
-
-		rocket.GetScriptScope().chosenAsPenetrationRocket <- true
+		}
 
 		ApplyPenetrationToRocket(owner, rocket)
 	}
 
 	CheckWeaponFire = function() {
 		local fire_time = NetProps.GetPropFloat(self, "m_flLastFireTime")
-		if (fire_time > last_fire_time && !forceAttacking) {
+		if (fire_time > last_fire_time && !(forceAttacking && !waitingForNextShot)) {
 			local owner = self.GetOwner()
 			if (owner) {
 				OnShot(owner)
@@ -264,15 +311,16 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 			local weaponScriptScope = weapon.GetScriptScope()
 			weaponScriptScope.last_fire_time <- 0.0
 			weaponScriptScope.forceAttacking <- false
+			weaponScriptScope.waitingForNextShot <- false
 
 			weaponScriptScope.CheckWeaponFire <- CheckWeaponFire
 			weaponScriptScope.FindRocket <- FindRocket
 			weaponScriptScope.ApplyPenetrationToRocket <- ApplyPenetrationToRocket
-			weaponScriptScope.StickyMaker <- StickyMaker
 			weaponScriptScope.OnShot <- OnShot
 
 			weaponScriptScope.DetonateRocket <- DetonateRocket
 			weaponScriptScope.RocketThink <- RocketThink
+			weaponScriptScope.RevertLauncherTempChanges <- RevertLauncherTempChanges
 
 			AddThinkToEnt(weapon, "CheckWeaponFire")
 		}
@@ -299,8 +347,6 @@ StickyMaker <- SpawnEntityFromTable("tf_point_weapon_mimic", {
 		PlayerSpawn(player)
 	}
 }
-
-RocketPenetration.StickyMaker <- StickyMaker
 
 // spoof a player spawn when the wave initializes
 for (local i = 1, player; i <= MaxClients(); i++)
