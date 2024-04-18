@@ -1,25 +1,35 @@
 local MASK_PLAYERSOLID = 33636363
 
-local SEEKING_RANGE = 500
-// local PROJECTILE_SPEED = 500
+local SEEKING_RANGE = 5000
+local MAX_HIT_TARGETS = 10
 local TURN_POWER = 0.75 // 0-1
+
+local PATTACH_ABSORIGIN_FOLLOW = 1
+local SF_TRIGGER_ALLOW_ALL = 64
+
+FakeCleaverMaker <- Entities.CreateByClassname("tf_weapon_rocketlauncher")
+NetProps.SetPropInt(FakeCleaverMaker, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 18) // https://wiki.alliedmods.net/Team_Fortress_2_Item_Definition_Indexes
+NetProps.SetPropBool(FakeCleaverMaker, "m_AttributeManager.m_Item.m_bInitialized", true)
+Entities.DispatchSpawn(FakeCleaverMaker)
+FakeCleaverMaker.SetClip1(-1)
 
 
 ::HellRetriever <- {
 	FindCleaver = function(owner) {
-		local entity = null
-		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 1000);) {
-			local owner = entity.GetOwner()
+		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_cleaver", owner.GetOrigin(), 100);) {
+			printl(entity)
 
-			if (!owner)
-				owner = NetProps.GetPropEntity(entity, "m_hThrower")
+			// local owner = entity.GetOwner()
 
-			if (owner != owner) {
-				continue
-			}
-			// if (NetProps.GetPropEntity(entity, "m_hThrower") != owner) {
+			// if (!owner)
+			// 	owner = NetProps.GetPropEntity(entity, "m_hThrower")
+
+			// if (owner != owner) {
 			// 	continue
 			// }
+			if (NetProps.GetPropEntity(entity, "m_hThrower") != owner) {
+				continue
+			}
 
 			entity.ValidateScriptScope()
 			if ("chosenAsHellRetriever" in entity.GetScriptScope())
@@ -34,11 +44,14 @@ local TURN_POWER = 0.75 // 0-1
 	}
 
 	CleaverThink = function() {
+		self.SetCollisionGroup(Constants.ECollisionGroup.COLLISION_GROUP_VEHICLE_CLIP)
+
 		if (!currentTarget)
 			currentTarget = FindTarget()
 
+		// fly back to owner when no target is found
 		if (!currentTarget)
-			return
+			currentTarget = owner
 
 		FaceTarget()
 
@@ -47,7 +60,6 @@ local TURN_POWER = 0.75 // 0-1
 		traceTable <- {
 			start = lastProjectileOrigin,
 			end = origin
-			ignore = owner
 			mask = MASK_PLAYERSOLID
 		}
 
@@ -58,25 +70,27 @@ local TURN_POWER = 0.75 // 0-1
 		if (!traceTable.hit)
 			return -1
 
-		if (!traceTable.enthit)
+		local entHit = traceTable.enthit
+
+		if (!entHit)
 			return -1
 
-		if (!traceTable.enthit.IsPlayer())
+		if (!entHit.IsPlayer())
 			return -1
 
-		if (traceTable.enthit.GetTeam() != owner.GetTeam())
+		if (entHit != currentTarget)
 			return -1
 
-		if (traceTable.enhit != currentTarget)
-			return -1
-
-		HitTarget()
+		if (entHit != owner)
+			HitTarget()
+		else
+			self.Kill()
 
 		return -1
 	}
 
 	ApplyMovementLogic = function(owner, cleaver) {
-		cleaver.SetSolid(Constants.ESolidType.SOLID_NONE)
+		cleaver.SetMoveType(Constants.EMoveType.MOVETYPE_NOCLIP,  Constants.EMoveCollide.MOVECOLLIDE_DEFAULT)
 
 		cleaver.ValidateScriptScope()
 		local cleaverScope = cleaver.GetScriptScope()
@@ -84,12 +98,15 @@ local TURN_POWER = 0.75 // 0-1
 		cleaverScope.lastProjectileOrigin <- cleaver.GetOrigin()
 		cleaverScope.collidedTargets <- []
 		cleaverScope.currentTarget <- null
-		cleaverScope.penetrationCount <- 0
+		cleaverScope.targetsCount <- 0
 		cleaverScope.owner <- owner
 		cleaverScope.CleaverThink <- CleaverThink
 
 		cleaverScope.FindTarget <- function()
 		{
+			if (targetsCount > MAX_HIT_TARGETS)
+				return
+
 			local origin = self.GetOrigin()
 
 			local closestTarget = null
@@ -113,6 +130,9 @@ local TURN_POWER = 0.75 // 0-1
 				closestTarget = entity
 				closestDistance = distance
 			}
+
+			if (!closestTarget)
+				return
 
 			return closestTarget
 		}
@@ -157,8 +177,10 @@ local TURN_POWER = 0.75 // 0-1
 
 		cleaverScope.HitTarget <- function () {
 			// do damage here
+			currentTarget.TakeDamage(50, Constants.FDmgType.DMG_BULLET, owner)
 
 			collidedTargets.append(currentTarget)
+			targetsCount++
 			currentTarget = null
 		}
 
@@ -177,7 +199,54 @@ local TURN_POWER = 0.75 // 0-1
 			return
 		}
 
-		ApplyMovementLogic(owner, cleaver)
+		cleaver.Kill()
+
+		local charge = NetProps.GetPropFloat(owner, "m_Shared.m_flItemChargeMeter");
+		local ammo = NetProps.GetPropIntArray(owner, "m_iAmmo", 1);
+		// set up stuff needed to ensure the weapon always fires
+		NetProps.SetPropIntArray(owner, "m_iAmmo", 99, 1)
+		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", 100.0)
+		NetProps.SetPropBool(owner, "m_bLagCompensation", false)
+		NetProps.SetPropFloat(FakeCleaverMaker, "m_flNextPrimaryAttack", 0)
+		NetProps.SetPropEntity(FakeCleaverMaker, "m_hOwner", owner)
+
+		FakeCleaverMaker.PrimaryAttack()
+
+		// revert changes
+		NetProps.SetPropBool(owner, "m_bLagCompensation", true)
+		NetProps.SetPropIntArray(owner, "m_iAmmo", ammo, 1)
+		NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", charge)
+
+		local fakeProjectile
+
+		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_rocket", owner.GetOrigin(), 100);) {
+			local owner = entity.GetOwner()
+
+			if (owner != owner) {
+				continue
+			}
+
+			entity.ValidateScriptScope()
+			if ("chosenAsFakeCleaver" in entity.GetScriptScope())
+				continue
+
+			entity.GetScriptScope().chosenAsFakeCleaver <- true
+
+			fakeProjectile = entity
+		}
+
+		EntFireByHandle(fakeProjectile, "DispatchEffect", "ParticleEffectStop", -1, null, null)
+		NetProps.SetPropString(fakeProjectile, "m_iClassname", "tf_weapon_cleaver")
+
+		local particle = SpawnEntityFromTable("trigger_particle", {
+			particle_name = "eyeboss_projectile",
+			attachment_type = PATTACH_ABSORIGIN_FOLLOW,
+			spawnflags = SF_TRIGGER_ALLOW_ALL
+		})
+		EntFireByHandle(particle, "StartTouch", "!activator", -1, fakeProjectile, fakeProjectile)
+		EntFireByHandle(particle, "Kill", "", -1, null, null)
+
+		ApplyMovementLogic(owner, fakeProjectile)
 	}
 
 	CheckWeaponFire = function() {
@@ -201,8 +270,8 @@ local TURN_POWER = 0.75 // 0-1
 			if (weapon == null)
 				continue
 
-			// if (weapon.GetClassname() != "tf_weapon_cleaver")
-			// 	continue
+			if (weapon.GetClassname() != "tf_weapon_cleaver")
+				continue
 
 			weapon.ValidateScriptScope();
 			local weaponScriptScope = weapon.GetScriptScope()
@@ -212,6 +281,7 @@ local TURN_POWER = 0.75 // 0-1
 			weaponScriptScope.FindCleaver <- FindCleaver
 			weaponScriptScope.ApplyMovementLogic <- ApplyMovementLogic
 			weaponScriptScope.OnShot <- OnShot
+			weaponScriptScope.FakeCleaverMaker <- FakeCleaverMaker
 
 			weaponScriptScope.CleaverThink <- CleaverThink
 
@@ -240,6 +310,8 @@ local TURN_POWER = 0.75 // 0-1
 		PlayerSpawn(player)
 	}
 }
+
+HellRetriever.FakeCleaverMaker <- FakeCleaverMaker
 
 // spoof a player spawn when the wave initializes
 for (local i = 1, player; i <= MaxClients(); i++)
