@@ -1,9 +1,11 @@
 local MASK_PLAYERSOLID = 33636363
 
+local DAMAGE = 50
 local SEEKING_RANGE = 5000
 local MAX_HIT_TARGETS = 10
 local TURN_POWER = 0.75 // 0-1
 local TIME_BEFORE_RECALL = 0.4 // send projectile back to player after this many seconds passed without a target
+local BASE_LAUNCHER_RECHARGE_TIME = 5.5
 
 local PATTACH_ABSORIGIN_FOLLOW = 1
 local SF_TRIGGER_ALLOW_ALL = 64
@@ -34,6 +36,7 @@ FakeCleaverMaker.SetClip1(-1)
 	}
 
 	CleaverThink = function() {
+		NetProps.SetPropFloat(realLauncher, "m_flEffectBarRegenTime", Time() + BASE_LAUNCHER_RECHARGE_TIME);
 		self.SetCollisionGroup(Constants.ECollisionGroup.COLLISION_GROUP_VEHICLE_CLIP)
 
 		propPitch += 20
@@ -99,11 +102,13 @@ FakeCleaverMaker.SetClip1(-1)
 		return -1
 	}
 
-	ApplyMovementLogic = function(owner, cleaver) {
+	ApplyMovementLogic = function(owner, cleaver, launcher) {
 		cleaver.SetMoveType(Constants.EMoveType.MOVETYPE_NOCLIP,  Constants.EMoveCollide.MOVECOLLIDE_DEFAULT)
 
 		cleaver.ValidateScriptScope()
 		local cleaverScope = cleaver.GetScriptScope()
+
+		cleaverScope.realLauncher <- launcher
 
 		cleaverScope.lastProjectileOrigin <- cleaver.GetOrigin()
 		cleaverScope.collidedTargets <- []
@@ -188,7 +193,8 @@ FakeCleaverMaker.SetClip1(-1)
 
 		cleaverScope.HitTarget <- function () {
 			// do damage here
-			currentTarget.TakeDamage(50, Constants.FDmgType.DMG_BULLET, owner)
+			// currentTarget.TakeDamage(DAMAGE, Constants.FDmgType.DMG_BULLET, owner)
+			currentTarget.TakeDamageEx(self, owner, realLauncher, Vector(0, 0, 0), owner.GetOrigin(), DAMAGE, Constants.FDmgType.DMG_CLUB)
 
 			collidedTargets.append(currentTarget)
 			targetsCount++
@@ -269,7 +275,7 @@ FakeCleaverMaker.SetClip1(-1)
 
 		fakeProjectile.GetScriptScope().projectileProp <- projectileProp
 
-		ApplyMovementLogic(owner, fakeProjectile)
+		ApplyMovementLogic(owner, fakeProjectile, self)
 	}
 
 	CheckWeaponFire = function() {
