@@ -1,11 +1,14 @@
 local MASK_PLAYERSOLID = 33636363
 
-local DAMAGE = 50
+local DAMAGE = 150
 local SEEKING_RANGE = 5000
 local MAX_HIT_TARGETS = 10
 local TURN_POWER = 0.75 // 0-1
 local TIME_BEFORE_RECALL = 0.4 // send projectile back to player after this many seconds passed without a target
 local BASE_LAUNCHER_RECHARGE_TIME = 5.5
+
+local MAX_CHARGE_TIME = 3
+local MAX_CHARGE_DAMAGE_BONUS = 150
 
 local PATTACH_ABSORIGIN_FOLLOW = 1
 local SF_TRIGGER_ALLOW_ALL = 64
@@ -14,6 +17,7 @@ FakeCleaverMaker <- Entities.CreateByClassname("tf_weapon_rocketlauncher")
 NetProps.SetPropInt(FakeCleaverMaker, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 18) // https://wiki.alliedmods.net/Team_Fortress_2_Item_Definition_Indexes
 NetProps.SetPropBool(FakeCleaverMaker, "m_AttributeManager.m_Item.m_bInitialized", true)
 Entities.DispatchSpawn(FakeCleaverMaker)
+FakeCleaverMaker.AddAttribute("crit mod disabled hidden", 1, -1)
 FakeCleaverMaker.SetClip1(-1)
 
 ::HellRetriever <- {
@@ -110,6 +114,7 @@ FakeCleaverMaker.SetClip1(-1)
 
 		cleaverScope.realLauncher <- launcher
 
+		cleaverScope.charge <- launcher.GetScriptScope().currentCharge
 		cleaverScope.lastProjectileOrigin <- cleaver.GetOrigin()
 		cleaverScope.collidedTargets <- []
 		cleaverScope.currentTarget <- null
@@ -192,9 +197,9 @@ FakeCleaverMaker.SetClip1(-1)
 		}
 
 		cleaverScope.HitTarget <- function () {
-			// do damage here
-			// currentTarget.TakeDamage(DAMAGE, Constants.FDmgType.DMG_BULLET, owner)
-			currentTarget.TakeDamageEx(self, owner, realLauncher, Vector(0, 0, 0), owner.GetOrigin(), DAMAGE, Constants.FDmgType.DMG_CLUB)
+			local damage = DAMAGE + (MAX_CHARGE_DAMAGE_BONUS * charge)
+
+			currentTarget.TakeDamageEx(self, owner, realLauncher, Vector(0, 0, 0), owner.GetOrigin(), damage, Constants.FDmgType.DMG_CLUB)
 
 			collidedTargets.append(currentTarget)
 			targetsCount++
@@ -278,10 +283,12 @@ FakeCleaverMaker.SetClip1(-1)
 		ApplyMovementLogic(owner, fakeProjectile, self)
 	}
 
-	CheckWeaponFire = function() {
+	LauncherThink = function() {
+		local owner = self.GetOwner()
+
+		// check weapon fire
 		local fire_time = NetProps.GetPropFloat(self, "m_flLastFireTime")
 		if (fire_time > last_fire_time) {
-			local owner = self.GetOwner()
 			if (owner) {
 				// OnShot()
 				EntFireByHandle(self, "CallScriptFunction", "OnShot", 0.1, null, null)
@@ -289,6 +296,39 @@ FakeCleaverMaker.SetClip1(-1)
 
 			last_fire_time = fire_time
 		}
+
+		// apply charge
+		if (owner.GetActiveWeapon() == self)
+		{
+			if (currentCharge < MAX_CHARGE_TIME)
+			{
+				currentCharge += FrameTime()
+				if (currentCharge > MAX_CHARGE_TIME)
+					currentCharge = MAX_CHARGE_TIME
+
+				if (currentChargeTier == 1 && currentCharge >= MAX_CHARGE_TIME * 0.33)
+				{
+					PlayChargeTierChangeEffect()
+					currentChargeTier++
+				}
+				else if (currentChargeTier == 2 && currentCharge >= MAX_CHARGE_TIME * 0.66)
+				{
+					PlayChargeTierChangeEffect()
+					currentChargeTier++
+				}
+				else if (currentChargeTier == 3 && currentCharge >= MAX_CHARGE_TIME)
+				{
+					PlayChargeTierChangeEffect()
+					currentChargeTier++
+				}
+			}
+		}
+		else
+		{
+			currentCharge = 0
+			currentChargeTier = 1
+		}
+
 		return -1
 	}
 
@@ -305,8 +345,14 @@ FakeCleaverMaker.SetClip1(-1)
 			weapon.ValidateScriptScope();
 			local weaponScriptScope = weapon.GetScriptScope()
 			weaponScriptScope.last_fire_time <- 0.0
+			weaponScriptScope.currentCharge <- 0.0
+			weaponScriptScope.currentChargeTier <- 1
 
-			weaponScriptScope.CheckWeaponFire <- CheckWeaponFire
+			weaponScriptScope.PlayChargeTierChangeEffect <- function () {
+				player.AddCondEx(20, 0.2, player)
+			}
+
+			weaponScriptScope.LauncherThink <- LauncherThink
 			weaponScriptScope.FindCleaver <- FindCleaver
 			weaponScriptScope.ApplyMovementLogic <- ApplyMovementLogic
 			weaponScriptScope.OnShot <- OnShot
@@ -314,7 +360,7 @@ FakeCleaverMaker.SetClip1(-1)
 
 			weaponScriptScope.CleaverThink <- CleaverThink
 
-			AddThinkToEnt(weapon, "CheckWeaponFire")
+			AddThinkToEnt(weapon, "LauncherThink")
 		}
 	}
 
