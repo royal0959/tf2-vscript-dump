@@ -1,0 +1,7 @@
+== VSCRIPT TODOs ==
+* Port dover bot stack
+* No expire for projectile shield ent
+* Fix red money never expiring
+* Look into cancelling animation for firing when using fake firing with rocket penetration
+* Scout money overheal for reverse (popext)
+* Hell's retriever

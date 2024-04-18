@@ -1,16 +1,20 @@
 local MASK_PLAYERSOLID = 33636363
 
 local SEEKING_RANGE = 500
-local PROJECTILE_SPEED = 10
-local TURN_POWER = 500
+// local PROJECTILE_SPEED = 500
+local TURN_POWER = 0.75 // 0-1
 
 
 ::HellRetriever <- {
 	FindCleaver = function(owner) {
 		local entity = null
 		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_*", owner.GetOrigin(), 1000);) {
-			printl(entity)
-			if (entity.GetOwner() != owner) {
+			local owner = entity.GetOwner()
+
+			if (!owner)
+				owner = NetProps.GetPropEntity(entity, "m_hThrower")
+
+			if (owner != owner) {
 				continue
 			}
 			// if (NetProps.GetPropEntity(entity, "m_hThrower") != owner) {
@@ -92,6 +96,9 @@ local TURN_POWER = 500
 			local closestDistance = 9999999999
 			for (local entity; entity = Entities.FindByClassnameWithin(entity, "player", self.GetOrigin(), SEEKING_RANGE);)
 			{
+				if (NetProps.GetPropInt(entity, "m_lifeState") != 0)
+					continue
+
 				if (entity.GetTeam() == owner.GetTeam())
 					continue
 
@@ -106,9 +113,6 @@ local TURN_POWER = 500
 				closestTarget = entity
 				closestDistance = distance
 			}
-
-			printl(closestDistance)
-			printl(closestTarget)
 
 			return closestTarget
 		}
@@ -136,16 +140,16 @@ local TURN_POWER = 500
 		}
 
 		cleaverScope.FaceTarget <- function () {
-			local desired_dir = currentTarget.EyePosition() - self.GetOrigin()
-
-			desired_dir.Norm()
+			local goalDirection = currentTarget.EyePosition() - self.GetOrigin()
+			local speed = self.GetAbsVelocity().Norm()
+			goalDirection.Norm()
 
 			local forwardVector = self.GetForwardVector()
-			local direction = forwardVector + (desired_dir - forwardVector) * TURN_POWER
+			local direction = forwardVector + (goalDirection - forwardVector) * TURN_POWER
 			direction.Norm()
 
 			local angle = VectorAngles(direction)
-			local velocity = angle.Forward() * PROJECTILE_SPEED
+			local velocity = angle.Forward() * speed
 
 			self.SetAbsVelocity(velocity)
 			self.SetLocalAngles(angle)
@@ -166,11 +170,8 @@ local TURN_POWER = 500
 	}
 
 	OnShot = function() {
-		printl("finding")
 		local owner = self.GetOwner()
 		local cleaver = FindCleaver(owner)
-
-		printl(cleaver)
 
 		if (!cleaver) {
 			return
