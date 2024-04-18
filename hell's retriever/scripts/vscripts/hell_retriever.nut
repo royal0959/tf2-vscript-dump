@@ -3,6 +3,7 @@ local MASK_PLAYERSOLID = 33636363
 local SEEKING_RANGE = 5000
 local MAX_HIT_TARGETS = 10
 local TURN_POWER = 0.75 // 0-1
+local TIME_BEFORE_RECALL = 0.4 // send projectile back to player after this many seconds passed without a target
 
 local PATTACH_ABSORIGIN_FOLLOW = 1
 local SF_TRIGGER_ALLOW_ALL = 64
@@ -13,20 +14,9 @@ NetProps.SetPropBool(FakeCleaverMaker, "m_AttributeManager.m_Item.m_bInitialized
 Entities.DispatchSpawn(FakeCleaverMaker)
 FakeCleaverMaker.SetClip1(-1)
 
-
 ::HellRetriever <- {
 	FindCleaver = function(owner) {
 		for (local entity; entity = Entities.FindByClassnameWithin(entity, "tf_projectile_cleaver", owner.GetOrigin(), 100);) {
-			printl(entity)
-
-			// local owner = entity.GetOwner()
-
-			// if (!owner)
-			// 	owner = NetProps.GetPropEntity(entity, "m_hThrower")
-
-			// if (owner != owner) {
-			// 	continue
-			// }
 			if (NetProps.GetPropEntity(entity, "m_hThrower") != owner) {
 				continue
 			}
@@ -46,16 +36,36 @@ FakeCleaverMaker.SetClip1(-1)
 	CleaverThink = function() {
 		self.SetCollisionGroup(Constants.ECollisionGroup.COLLISION_GROUP_VEHICLE_CLIP)
 
+		propPitch += 20
+		projectileProp.SetAbsAngles(QAngle(propPitch, 0, 0))
+
 		if (!currentTarget)
 			currentTarget = FindTarget()
 
-		// fly back to owner when no target is found
-		if (!currentTarget)
+		local returnToPlayer = false
+
+		if (targetsCount > MAX_HIT_TARGETS)
+			returnToPlayer = true
+		else if (!currentTarget)
+		{
+			timeWithoutTargetInRange += FrameTime()
+
+			if (timeWithoutTargetInRange >= TIME_BEFORE_RECALL)
+				returnToPlayer = true
+		}
+
+		if (returnToPlayer)
 			currentTarget = owner
 
-		FaceTarget()
-
 		local origin = self.GetOrigin()
+
+		if (!currentTarget)
+		{
+			lastProjectileOrigin = origin
+			return -1
+		}
+
+		FaceTarget()
 
 		traceTable <- {
 			start = lastProjectileOrigin,
@@ -100,13 +110,14 @@ FakeCleaverMaker.SetClip1(-1)
 		cleaverScope.currentTarget <- null
 		cleaverScope.targetsCount <- 0
 		cleaverScope.owner <- owner
+
+		cleaverScope.timeWithoutTargetInRange <- 0
+		cleaverScope.propPitch <- 0
+
 		cleaverScope.CleaverThink <- CleaverThink
 
 		cleaverScope.FindTarget <- function()
 		{
-			if (targetsCount > MAX_HIT_TARGETS)
-				return
-
 			local origin = self.GetOrigin()
 
 			local closestTarget = null
@@ -211,6 +222,7 @@ FakeCleaverMaker.SetClip1(-1)
 		NetProps.SetPropEntity(FakeCleaverMaker, "m_hOwner", owner)
 
 		FakeCleaverMaker.PrimaryAttack()
+		FakeCleaverMaker.StopSound("Weapon_RPG.Single") // doesn't work
 
 		// revert changes
 		NetProps.SetPropBool(owner, "m_bLagCompensation", true)
@@ -245,6 +257,17 @@ FakeCleaverMaker.SetClip1(-1)
 		})
 		EntFireByHandle(particle, "StartTouch", "!activator", -1, fakeProjectile, fakeProjectile)
 		EntFireByHandle(particle, "Kill", "", -1, null, null)
+
+		fakeProjectile.SetModelSimple("models/empty.mdl")
+
+		local projectileProp = SpawnEntityFromTable("prop_dynamic", {
+			model = "models/workshop_partner/weapons/c_models/c_sd_cleaver/c_sd_cleaver.mdl",
+			solid = 0,
+		})
+		projectileProp.SetAbsOrigin(fakeProjectile.GetOrigin())
+		EntFireByHandle(projectileProp, "SetParent", "!activator", -1, fakeProjectile, fakeProjectile)
+
+		fakeProjectile.GetScriptScope().projectileProp <- projectileProp
 
 		ApplyMovementLogic(owner, fakeProjectile)
 	}
