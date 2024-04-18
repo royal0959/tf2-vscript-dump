@@ -3,6 +3,7 @@ local MASK_PLAYERSOLID = 33636363
 local DAMAGE = 150
 local SEEKING_RANGE = 5000
 local MAX_HIT_TARGETS = 10
+local MONEY_COLLECTION_RANGE = 1000
 local TURN_POWER = 0.75 // 0-1
 local TIME_BEFORE_RECALL = 0.4 // send projectile back to player after this many seconds passed without a target
 local BASE_LAUNCHER_RECHARGE_TIME = 5.5
@@ -51,6 +52,22 @@ FakeCleaverMaker.SetClip1(-1)
 
 		propPitch += 20
 		projectileProp.SetAbsAngles(QAngle(propPitch, 0, 0))
+
+		for (local entity; entity = Entities.FindByClassnameWithin(entity, "item_currencypack_*", owner.GetOrigin(), MONEY_COLLECTION_RANGE);)
+		{
+			if (attachedMoney.find(entity) != null)
+				continue
+
+			attachedMoney.append(entity)
+		}
+
+		foreach(moneyPack in attachedMoney)
+		{
+			if (!moneyPack.IsValid())
+				continue
+
+			moneyPack.SetAbsOrigin(self.GetOrigin())
+		}
 
 		if (!currentTarget)
 			currentTarget = FindTarget()
@@ -125,6 +142,7 @@ FakeCleaverMaker.SetClip1(-1)
 		cleaverScope.charge <- launcher.GetScriptScope().currentCharge
 		cleaverScope.lastProjectileOrigin <- cleaver.GetOrigin()
 		cleaverScope.collidedTargets <- []
+		cleaverScope.attachedMoney <- []
 		cleaverScope.currentTarget <- null
 		cleaverScope.targetsCount <- 0
 		cleaverScope.owner <- owner
