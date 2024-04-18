@@ -40,7 +40,13 @@ FakeCleaverMaker.SetClip1(-1)
 	}
 
 	CleaverThink = function() {
-		NetProps.SetPropFloat(realLauncher, "m_flEffectBarRegenTime", Time() + BASE_LAUNCHER_RECHARGE_TIME);
+		if (!stoppedCooldown)
+		{
+			stoppedCooldown = true
+			cooldownTime = NetProps.GetPropFloat(realLauncher, "m_flEffectBarRegenTime") - Time() + 0.2
+		}
+
+		NetProps.SetPropFloat(realLauncher, "m_flEffectBarRegenTime", Time() + cooldownTime)
 		self.SetCollisionGroup(Constants.ECollisionGroup.COLLISION_GROUP_VEHICLE_CLIP)
 
 		propPitch += 20
@@ -114,6 +120,8 @@ FakeCleaverMaker.SetClip1(-1)
 
 		cleaverScope.realLauncher <- launcher
 
+		cleaverScope.stoppedCooldown <- false
+		cleaverScope.cooldownTime <- 0
 		cleaverScope.charge <- launcher.GetScriptScope().currentCharge
 		cleaverScope.lastProjectileOrigin <- cleaver.GetOrigin()
 		cleaverScope.collidedTargets <- []
@@ -321,6 +329,10 @@ FakeCleaverMaker.SetClip1(-1)
 					PlayChargeTierChangeEffect()
 					currentChargeTier++
 				}
+			}
+			else
+			{
+				owner.AddCondEx(33, 0.03, owner)
 			}
 		}
 		else
