@@ -157,7 +157,7 @@ FakeCleaverMaker.SetClip1(-1)
 			local origin = self.GetOrigin()
 
 			local closestTarget = null
-			local closestDistance = 9999999999
+			local closestDistance = 1e30
 			for (local entity; entity = Entities.FindByClassnameWithin(entity, "player", self.GetOrigin(), SEEKING_RANGE);)
 			{
 				if (NetProps.GetPropInt(entity, "m_lifeState") != 0)
