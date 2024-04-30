@@ -6,17 +6,18 @@
 
 		local attacker = params.attacker
 
-		if (!NetProps.GetPropBool(attacker, "m_Shared.m_bRageDraining"))
+		if (!attacker.IsRageDraining())
 			return
 
 		params.early_out = true
 
-		local rageMeter = NetProps.GetPropFloat(attacker, "m_Shared.m_flRageMeter")
+		local rageMeter = attacker.GetRageMeter()
 		NetProps.SetPropBool(attacker, "m_Shared.m_bRageDraining", false)
-		params.const_entity.TakeDamageEx(params.inflictor, params.attacker, params.weapon, params.damage_force, params.damage_position, params.damage, params.damage_type)
+
+		params.const_entity.TakeDamageCustom(params.inflictor, params.attacker, params.weapon, params.damage_force, params.damage_position, params.damage, params.damage_type, params.damage_stats)
 
 		NetProps.SetPropBool(attacker, "m_Shared.m_bRageDraining", true)
-		NetProps.SetPropFloat(attacker, "m_Shared.m_flRageMeter", rageMeter)
+		attacker.SetRageMeter(rageMeter)
 	}
 
 	PlayerSpawn = function(player) {

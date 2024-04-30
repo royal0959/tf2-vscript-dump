@@ -1,3 +1,6 @@
+const TF_POWERUP_LIFETIME = 30
+const MASK_SOLID_BRUSHONLY = 16395
+
 ::RedMoney <- {
 	CollectPack = function() {
 		local pack = self
@@ -52,6 +55,18 @@
 		}
 		else
 			fakePack.SetAbsOrigin(origin)
+
+		fakePack.ValidateScriptScope()
+		fakePack.GetScriptScope().despawnTime <- Time() + TF_POWERUP_LIFETIME
+		fakePack.GetScriptScope().DespawnThink <- function () {
+			if (Time() < despawnTime)
+				return
+
+			fakePack.Kill()
+		}
+
+		AddThinkToEnt(fakePack, "DespawnThink")
+
 	}
 
 	OnGameEvent_player_death = function(params) {
