@@ -30,6 +30,9 @@ const ANGLE_INTERVAL = 10
 		launcher.GetScriptScope().previousData <- {
 			projectile = self,
 			eyeAngle = owner.EyeAngles(),
+			lastEyeAngle = owner.EyeAngles(),
+			origin = owner.GetOrigin(),
+			lastOrigin = owner.GetOrigin(),
 			charge = NetProps.GetPropFloat(owner, "m_Shared.m_flItemChargeMeter"),
 			nextAttack = NetProps.GetPropFloat(launcher, "m_flNextPrimaryAttack"),
 			lastFire = NetProps.GetPropFloat(launcher, "m_flLastFireTime"),
@@ -133,7 +136,8 @@ const ANGLE_INTERVAL = 10
 			NetProps.SetPropFloat(self, "m_flLastFireTime", previousData.lastFire)
 			NetProps.SetPropFloat(owner, "m_Shared.m_flItemChargeMeter", previousData.charge)
 
-			owner.SnapEyeAngles(previousData.eyeAngle)
+			owner.SnapEyeAngles(previousData.lastEyeAngle)
+			// owner.SetAbsOrigin(previousData.lastOrigin)
 		}
 
 		return -1
@@ -143,7 +147,7 @@ const ANGLE_INTERVAL = 10
 		player.ValidateScriptScope()
 		player.GetScriptScope().bowWeapon <- null
 		player.GetScriptScope().ThinkFunc <- function () {
-			if (bowWeapon == null)
+			if (bowWeapon == null || !bowWeapon.IsValid())
 				return -1
 
 			local bowScope = bowWeapon.GetScriptScope()
@@ -151,7 +155,12 @@ const ANGLE_INTERVAL = 10
 				return -1
 
 			local previousData = bowScope.previousData
+
+			previousData.lastEyeAngle = self.EyeAngles()
+			previousData.lastOrigin = self.GetOrigin()
+
 			self.SnapEyeAngles(previousData.eyeAngle + QAngle(0, ANGLE_INTERVAL * bowScope.forceFireNextFrameIndex, 0))
+			// self.SetAbsOrigin(previousData.origin)
 
 			bowScope.nextShotForced = true
 
