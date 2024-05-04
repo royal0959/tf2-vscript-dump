@@ -2,6 +2,7 @@ const ANGLE_INTERVAL = 5
 
 ::ArrowMastery <- {
 	OnShot = function(owner) {
+		local ammo = NetProps.GetPropIntArray(owner, "m_iAmmo", 1)
 		foreach(bow in extraBows) {
 			// set up stuff needed to ensure the weapon always fires
 			NetProps.SetPropFloat(bow, "m_flChargeBeginTime", lastChargeTime)
@@ -10,6 +11,7 @@ const ANGLE_INTERVAL = 5
 
 			bow.PrimaryAttack()
 		}
+		NetProps.SetPropIntArray(owner, "m_iAmmo", ammo, 1)
 
 		local realArrow
 		for (local projectile; projectile = Entities.FindByClassnameWithin(projectile, "tf_projectile_arrow", owner.GetOrigin(), 100);) {
