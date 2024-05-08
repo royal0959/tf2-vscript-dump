@@ -4,14 +4,6 @@ const EXTRA_ARROWS_COUNT = 4
 ::ArrowMastery <- {
 	OnShot = function(owner) {
 		local ammo = NetProps.GetPropIntArray(owner, "m_iAmmo", 1)
-		// foreach(bow in extraBows) {
-		// 	// set up stuff needed to ensure the weapon always fires
-		// 	NetProps.SetPropFloat(bow, "m_flChargeBeginTime", lastChargeTime)
-		// 	NetProps.SetPropFloat(bow, "m_flNextPrimaryAttack", 0)
-		// 	NetProps.SetPropEntity(bow, "m_hOwner", owner);
-
-		// 	bow.PrimaryAttack()
-		// }
 
 		for (local i = 0; i < EXTRA_ARROWS_COUNT; i++)
 		{
@@ -20,9 +12,10 @@ const EXTRA_ARROWS_COUNT = 4
 			NetProps.SetPropEntity(bowShooter, "m_hOwner", owner);
 
 			bowShooter.PrimaryAttack()
+
+			NetProps.SetPropIntArray(owner, "m_iAmmo", ammo, 1)
 		}
 
-		NetProps.SetPropIntArray(owner, "m_iAmmo", ammo, 1)
 
 		local realArrow
 		for (local projectile; projectile = Entities.FindByClassnameWithin(projectile, "tf_projectile_arrow", owner.GetOrigin(), 100);) {
