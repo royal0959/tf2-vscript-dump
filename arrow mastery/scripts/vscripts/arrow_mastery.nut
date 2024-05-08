@@ -1,16 +1,27 @@
 const ANGLE_INTERVAL = 5
+const EXTRA_ARROWS_COUNT = 4
 
 ::ArrowMastery <- {
 	OnShot = function(owner) {
 		local ammo = NetProps.GetPropIntArray(owner, "m_iAmmo", 1)
-		foreach(bow in extraBows) {
-			// set up stuff needed to ensure the weapon always fires
-			NetProps.SetPropFloat(bow, "m_flChargeBeginTime", lastChargeTime)
-			NetProps.SetPropFloat(bow, "m_flNextPrimaryAttack", 0)
-			NetProps.SetPropEntity(bow, "m_hOwner", owner);
+		// foreach(bow in extraBows) {
+		// 	// set up stuff needed to ensure the weapon always fires
+		// 	NetProps.SetPropFloat(bow, "m_flChargeBeginTime", lastChargeTime)
+		// 	NetProps.SetPropFloat(bow, "m_flNextPrimaryAttack", 0)
+		// 	NetProps.SetPropEntity(bow, "m_hOwner", owner);
 
-			bow.PrimaryAttack()
+		// 	bow.PrimaryAttack()
+		// }
+
+		for (local i = 0; i < EXTRA_ARROWS_COUNT; i++)
+		{
+			NetProps.SetPropFloat(bowShooter, "m_flChargeBeginTime", lastChargeTime)
+			NetProps.SetPropFloat(bowShooter, "m_flNextPrimaryAttack", 0)
+			NetProps.SetPropEntity(bowShooter, "m_hOwner", owner);
+
+			bowShooter.PrimaryAttack()
 		}
+
 		NetProps.SetPropIntArray(owner, "m_iAmmo", ammo, 1)
 
 		local realArrow
@@ -70,6 +81,9 @@ const ANGLE_INTERVAL = 5
 				arrowCountPositive++
 
 			negativeAngle = !negativeAngle
+
+			NetProps.SetPropEntity(projectile, "m_hOriginalLauncher", NetProps.GetPropEntity(realArrow, "m_hOriginalLauncher"))
+			NetProps.SetPropBool(projectile, "m_bCritical", NetProps.GetPropBool(realArrow, "m_bCritical"))
 		}
 	}
 
@@ -102,7 +116,6 @@ const ANGLE_INTERVAL = 5
 			weapon.ValidateScriptScope()
 			weapon.GetScriptScope().last_fire_time <- 0.0
 			weapon.GetScriptScope().lastChargeTime <- false
-			weapon.GetScriptScope().extraBows <- []
 
 			weapon.GetScriptScope().VectorAngles <- function(forward)
 			{
@@ -126,22 +139,18 @@ const ANGLE_INTERVAL = 5
 				return QAngle(pitch, yaw, 0.0)
 			}
 
-			// TODO change this to a single weapon instead
-			for (i = 0; i < 4; i++)
-			{
-				ExtraBow <- Entities.CreateByClassname("tf_weapon_sniperrifle")
-				NetProps.SetPropInt(ExtraBow, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 305) // https://wiki.alliedmods.net/Team_Fortress_2_Item_Definition_Indexes
-				NetProps.SetPropBool(ExtraBow, "m_AttributeManager.m_Item.m_bInitialized", true)
-				Entities.DispatchSpawn(ExtraBow)
-				ExtraBow.AddAttribute("crit mod disabled hidden", 1, -1)
-				ExtraBow.AddAttribute("override projectile type", 8, -1) // huntsman arrow
-				// ExtraBow.AddAttribute("centerfire projectile", 1, -1)
+			ExtraBow <- Entities.CreateByClassname("tf_weapon_sniperrifle")
+			NetProps.SetPropInt(ExtraBow, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 305) // https://wiki.alliedmods.net/Team_Fortress_2_Item_Definition_Indexes
+			NetProps.SetPropBool(ExtraBow, "m_AttributeManager.m_Item.m_bInitialized", true)
+			Entities.DispatchSpawn(ExtraBow)
+			ExtraBow.AddAttribute("crit mod disabled hidden", 1, -1)
+			ExtraBow.AddAttribute("override projectile type", 8, -1) // huntsman arrow
+			// ExtraBow.AddAttribute("centerfire projectile", 1, -1)
 
-				ExtraBow.SetClip1(-1)
-				ExtraBow.SetOwner(player)
+			ExtraBow.SetClip1(-1)
+			ExtraBow.SetOwner(player)
 
-				weapon.GetScriptScope().extraBows.append(ExtraBow)
-			}
+			weapon.GetScriptScope().bowShooter <- ExtraBow
 
 			weapon.GetScriptScope().OnShot <- OnShot
 			weapon.GetScriptScope().CheckWeaponFire <- CheckWeaponFire
