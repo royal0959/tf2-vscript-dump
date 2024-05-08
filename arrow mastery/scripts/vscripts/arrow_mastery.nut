@@ -7,7 +7,7 @@ const EXTRA_ARROWS_COUNT = 4
 
 		for (local i = 0; i < EXTRA_ARROWS_COUNT; i++)
 		{
-			NetProps.SetPropFloat(bowShooter, "m_flChargeBeginTime", lastChargeTime)
+			NetProps.SetPropFloat(bowShooter, "m_flChargeBeginTime", lastChargeTime) // doesn't do anything
 			NetProps.SetPropFloat(bowShooter, "m_flNextPrimaryAttack", 0)
 			NetProps.SetPropEntity(bowShooter, "m_hOwner", owner);
 
@@ -15,7 +15,6 @@ const EXTRA_ARROWS_COUNT = 4
 
 			NetProps.SetPropIntArray(owner, "m_iAmmo", ammo, 1)
 		}
-
 
 		local realArrow
 		for (local projectile; projectile = Entities.FindByClassnameWithin(projectile, "tf_projectile_arrow", owner.GetOrigin(), 100);) {
@@ -77,6 +76,7 @@ const EXTRA_ARROWS_COUNT = 4
 
 			NetProps.SetPropEntity(projectile, "m_hOriginalLauncher", NetProps.GetPropEntity(realArrow, "m_hOriginalLauncher"))
 			NetProps.SetPropBool(projectile, "m_bCritical", NetProps.GetPropBool(realArrow, "m_bCritical"))
+			NetProps.SetPropFloat(projectile, "m_flGravity", NetProps.GetPropFloat(realArrow, "m_flGravity"))
 		}
 	}
 
