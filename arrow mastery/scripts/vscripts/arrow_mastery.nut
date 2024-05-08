@@ -60,6 +60,7 @@ const ANGLE_INTERVAL = 5
 			local angle = VectorAngles(direction) + QAngle(0, ANGLE_INTERVAL * angleMult * negativeMult , 0)
 			local velocity = angle.Forward() * speed
 
+			projectile.SetAbsOrigin(realArrow.GetOrigin())
 			projectile.SetLocalAngles(angle)
 			projectile.SetAbsVelocity(velocity)
 
@@ -125,9 +126,10 @@ const ANGLE_INTERVAL = 5
 				return QAngle(pitch, yaw, 0.0)
 			}
 
+			// TODO change this to a single weapon instead
 			for (i = 0; i < 4; i++)
 			{
-				ExtraBow <- Entities.CreateByClassname("tf_weapon_crossbow")
+				ExtraBow <- Entities.CreateByClassname("tf_weapon_sniperrifle")
 				NetProps.SetPropInt(ExtraBow, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 305) // https://wiki.alliedmods.net/Team_Fortress_2_Item_Definition_Indexes
 				NetProps.SetPropBool(ExtraBow, "m_AttributeManager.m_Item.m_bInitialized", true)
 				Entities.DispatchSpawn(ExtraBow)
