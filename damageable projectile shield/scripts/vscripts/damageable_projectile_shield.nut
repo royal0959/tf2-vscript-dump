@@ -4,12 +4,13 @@ local damageNumberHolder = SpawnEntityFromTable("obj_sentrygun", {
 
 damageNumberHolder.ValidateScriptScope()
 damageNumberHolder.GetScriptScope().FullHealth <-  function() {
-	EntFireByHandle(damageNumberHolder, "SetHealth", "100000000", 0, null, null)
+	EntFireByHandle(damageNumberHolder, "SetHealth", "10000000", 0, null, null)
 }
 damageNumberHolder.GetScriptScope().PutAway <- function () {
 	damageNumberHolder.SetAbsOrigin(Vector(0, -100000, 0))
 }
 
+damageNumberHolder.SetMaxHealth(10000000)
 damageNumberHolder.GetScriptScope().FullHealth()
 damageNumberHolder.GetScriptScope().PutAway()
 damageNumberHolder.DisableDraw()
@@ -105,8 +106,8 @@ damageNumberHolder.SetSolid(Constants.ESolidType.SOLID_NONE)
 		// if (fullDamage > params.max_damage)
 		// 	fullDamage = params.max_damage
 
-		if (fullDamage > 10000000)
-			fullDamage = 10000000
+		if (fullDamage >= damageNumberHolder.GetHealth())
+			fullDamage = damageNumberHolder.GetHealth() - 1
 
 		if (fullDamage <= 0)
 			return
@@ -116,8 +117,8 @@ damageNumberHolder.SetSolid(Constants.ESolidType.SOLID_NONE)
 			rageMeter = MIN_DAMAGE_METER
 
 		if (params.attacker) {
-			damageNumberHolder.SetAbsOrigin(entity.GetOrigin() + Vector(0, 0, 15))
 			damageNumberHolder.SetTeam(owner.GetTeam())
+			damageNumberHolder.SetAbsOrigin(entity.GetOrigin() + Vector(0, 0, 15))
 
 			damageNumberHolder.TakeDamage(fullDamage, params.damage_type, params.attacker)
 
