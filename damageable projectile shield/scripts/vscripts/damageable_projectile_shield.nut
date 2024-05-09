@@ -122,7 +122,7 @@ damageNumberHolder.SetSolid(Constants.ESolidType.SOLID_NONE)
 			damageNumberHolder.TakeDamage(fullDamage, params.damage_type, params.attacker)
 
 			EntFireByHandle(damageNumberHolder, "CallScriptFunction", "FullHealth", -1, null, null)
-			EntFireByHandle(damageNumberHolder, "CallScriptFunction", "PutAway", -1, null, null)
+			EntFireByHandle(damageNumberHolder, "CallScriptFunction", "PutAway", 0.015, null, null)
 		}
 
 		// make shield flicker
