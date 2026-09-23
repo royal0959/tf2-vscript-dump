@@ -166,6 +166,9 @@ local HEAL_AMOUNT_MAX = 60
 
 		local inflictor = params.inflictor
 
+		if (inflictor == null)
+			return
+
 		inflictor.ValidateScriptScope()
 		local inflictorScope = inflictor.GetScriptScope()
 
